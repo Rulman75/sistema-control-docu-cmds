@@ -1,0 +1,28 @@
+# Dependencias
+node_modules/
+**/node_modules/
+
+# Compilados y cachés
+dist/
+**/dist/
+build/
+.vite/
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Archivos temporales de SQLite (se conserva dev.db con los datos iniciales)
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Documentos generados temporalmente (se conservan las plantillas base en uploads/)
+backend/uploads/generated/*.docx
+
+# Logs y sistema operativo
+*.log
+npm-debug.log*
+Thumbs.db
+.DS_Store

@@ -1,0 +1,142 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// 1. Usuarios con Control de Acceso Basado en Roles (RBAC)
+model User {
+  id          Int        @id @default(autoincrement())
+  rut         Int        @unique
+  dv          String     @default("0")
+  name        String
+  email       String     @unique
+  password    String     @default("cmds2026")
+  role        String     // SUPERADMIN, DIRECTOR, JEFE_DEPTO, FUNCIONARIO, AUDITOR_CONTRALORIA
+  department  String     // CASA_CENTRAL, EDUCACION, SALUD, DAF, JURIDICA
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  auditLogs   AuditLog[]
+}
+
+// 2. Plantillas con departamento y nivel de confidencialidad
+model Template {
+  id              Int             @id @default(autoincrement())
+  name            String
+  filePath        String
+  department      String          @default("TRANSVERSAL") // CASA_CENTRAL, EDUCACION, SALUD, DAF, TRANSVERSAL
+  confidentiality String          @default("INTERNO")     // PUBLICO, INTERNO, RESERVADO, CONFIDENCIAL
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  fields          TemplateField[]
+  documents       Document[]
+}
+
+model TemplateField {
+  id          Int      @id @default(autoincrement())
+  templateId  Int
+  name        String   // e.g., "fecha", "rut", "monto"
+  type        String   // e.g., "text", "date", "number"
+  description String?
+  
+  template    Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+// 3. Documentos con Estados, Versionado y Clasificación SGSI
+model Document {
+  id                Int      @id @default(autoincrement())
+  templateId        Int
+  folio             String?  // Ej: RES-DAF-2026-0001
+  generatedFilePath String
+  data              String   // Stores the exact key-value pairs used for generation (JSON stringified for SQLite)
+  fullTextContent   String?  // Plaintext extracted from Word XML for full-text search
+  department        String   @default("CASA_CENTRAL")
+  confidentiality   String   @default("INTERNO")     // PUBLICO, INTERNO, RESERVADO, CONFIDENCIAL
+  status            String    @default("EMITIDO")     // BORRADOR, EN_REVISION, APROBADO, EMITIDO, ARCHIVADO
+  version           String    @default("1.0")
+  cuv               String?   @unique                 // Código Único de Verificación (ej: CMDS-A4F7-2026)
+  sha256Hash        String?                           // Hash SHA-256 para validación de integridad
+  parentDocumentId  Int?
+  changeLog         String?   // Motivo del cambio / notas de versión
+  retentionYears    Int       @default(5)             // Plazo de retención legal (ej. 5 años para resoluciones)
+  isArchived        Boolean   @default(false)
+  createdBy         String    // E.g., user ID or username
+  userRut           String?   // Rut del usuario emisor
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @default(now()) @updatedAt
+  
+  template          Template  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  parentDocument    Document? @relation("DocumentVersions", fields: [parentDocumentId], references: [id])
+  childVersions     Document[] @relation("DocumentVersions")
+  approvalSteps     DocumentApproval[]
+}
+
+// 4. Flujo de Trabajo (Workflows) y Aprobaciones / Visaciones
+model DocumentApproval {
+  id            Int       @id @default(autoincrement())
+  documentId    Int
+  stepNumber    Int       // 1 = Jefatura, 2 = Dirección
+  stepName      String    // ej: "Visación Jefatura", "Firma Dirección Ejecutiva"
+  roleRequired  String    // JEFE_DEPTO, DIRECTOR
+  department    String    // DAF, EDUCACION, SALUD, CASA_CENTRAL
+  status        String    @default("PENDIENTE") // PENDIENTE, APROBADO, RECHAZADO
+  comment       String?   // Observaciones de la visación
+  approvedAt    DateTime?
+  approvedBy    String?   // Nombre del funcionario que visó
+  approverRut   String?
+  approverIp    String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @default(now()) @updatedAt
+
+  document      Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+}
+
+// 4. Pista de Auditoría (Audit Trail) Inalterable para Contraloría / SGSI
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  action      String   // LOGIN, GENERATE_DOC, DOWNLOAD_DOC, DELETE_DOC, VIEW_DOC, CREATE_TEMPLATE, DELETE_TEMPLATE
+  entityType  String   // Document, Template, User, Security
+  entityId    Int?
+  userId      Int?
+  userRut     String?
+  userName    String
+  userRole    String
+  department  String
+  ipAddress   String
+  userAgent   String
+  details     String   // JSON string with extra details (e.g. folio, filename, parameters)
+  createdAt   DateTime @default(now())
+
+  user        User?    @relation(fields: [userId], references: [id])
+}
+
+// 5. Departamentos Institucionales CMDS
+model Department {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique // e.g. "DAF", "EDUCACION", "SALUD", "CASA_CENTRAL", "JURIDICA"
+  name        String    // e.g. "Dirección de Administración y Finanzas (DAF)"
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// 6. Roles y Privilegios Institucionales RBAC
+model Role {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique // e.g. "SUPERADMIN", "DIRECTOR", "JEFE_DEPTO", "FUNCIONARIO", "AUDITOR_CONTRALORIA"
+  name        String    // e.g. "Jefatura de Departamento (Visador Técnico)"
+  description String?
+  hierarchy   Int       @default(1) // 1=Funcionario, 2=Jefe Depto, 3=Director, 4=Auditor, 5=Superadmin
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+

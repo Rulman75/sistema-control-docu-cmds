@@ -1,0 +1,36 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx watch --use-system-ca src/server.ts",
+    "start": "tsx --use-system-ca src/server.ts",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "prisma skills sync || exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "cors": "^2.8.6",
+    "docxtemplater": "^3.71.0",
+    "dotenv": "^18.0.3",
+    "express": "^5.2.1",
+    "multer": "^2.4.0",
+    "pizzip": "^3.3.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.2.0",
+    "@types/node": "^26.6.2",
+    "@types/qrcode": "^1.5.6",
+    "docx": "^9.10.0",
+    "prisma": "^5.22.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3"
+  }
+}
